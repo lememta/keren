@@ -12,6 +12,9 @@ public:
   /// Lower StableHLO operations to Linalg dialect in-place.
   /// Returns failure if the pass pipeline fails.
   static mlir::LogicalResult lowerStableHLOToLinalg(mlir::ModuleOp module);
+
+  /// Insert interpreter.probe ops after every SSA value for tracing.
+  static mlir::LogicalResult instrumentWithProbes(mlir::ModuleOp module);
 };
 
 } // namespace keren

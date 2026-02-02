@@ -9,6 +9,8 @@
 
 #include "stablehlo/dialect/StablehloOps.h"
 #include "stablehlo/reference/Api.h"
+#include "stablehlo/reference/Configuration.h"
+#include "stablehlo/reference/InterpreterOps.h"
 
 namespace keren {
 
@@ -23,6 +25,7 @@ void Interpreter::registerDialects() {
   registry.insert<mlir::arith::ArithDialect>();
   registry.insert<mlir::tensor::TensorDialect>();
   registry.insert<mlir::linalg::LinalgDialect>();
+  registry.insert<mlir::stablehlo::interpreter::InterpreterDialect>();
   context_.appendDialectRegistry(registry);
   context_.loadAllAvailableDialects();
 }
@@ -31,7 +34,9 @@ void Interpreter::addHandler(std::unique_ptr<DialectHandler> handler) {
   handlers_.push_back(std::move(handler));
 }
 
-std::vector<TensorValue> Interpreter::runFile(llvm::StringRef filename) {
+std::vector<TensorValue>
+Interpreter::runFile(llvm::StringRef filename,
+                     llvm::ArrayRef<mlir::stablehlo::InterpreterValue> inputs) {
   // Parse the MLIR source file.
   auto module = mlir::parseSourceFile<mlir::ModuleOp>(filename, &context_);
   if (!module) {
@@ -51,24 +56,36 @@ std::vector<TensorValue> Interpreter::runFile(llvm::StringRef filename) {
     return {};
   }
 
+  // If tracing, insert probe ops before evaluation.
+  if (!opts_.probeDir.empty()) {
+    if (mlir::failed(Pipeline::instrumentWithProbes(*module)))
+      return {};
+  }
+
   // Use StableHLO's reference interpreter for whole-module evaluation.
-  return evalViaStableHLO(*module);
+  return evalViaStableHLO(*module, inputs);
 }
 
 std::vector<TensorValue>
-Interpreter::evalViaStableHLO(mlir::ModuleOp module) {
-  // evalModule expects no inputs for functions with no arguments,
-  // or SmallVector<SmallVector<Tensor>> for multiple inputs.
-  // We call with empty inputs assuming the entry function takes no args.
-  auto errorOrResults = mlir::stablehlo::evalModule(module, {});
+Interpreter::evalViaStableHLO(
+    mlir::ModuleOp module,
+    llvm::ArrayRef<mlir::stablehlo::InterpreterValue> inputs) {
+  mlir::stablehlo::InterpreterConfiguration config;
+  config.mainFunction = opts_.entryFunction;
+  if (!opts_.probeDir.empty())
+    config.probeInstrumentationDir = opts_.probeDir;
+
+  auto errorOrResults =
+      mlir::stablehlo::evalModule(module, inputs, config);
   if (mlir::failed(errorOrResults)) {
     llvm::errs() << "error: StableHLO evaluation failed\n";
     return {};
   }
 
   std::vector<TensorValue> results;
-  for (auto &tensor : *errorOrResults) {
-    results.emplace_back(std::move(tensor));
+  for (auto &val : *errorOrResults) {
+    // InterpreterValue wraps a Tensor
+    results.emplace_back(val.getTensor());
   }
   return results;
 }
