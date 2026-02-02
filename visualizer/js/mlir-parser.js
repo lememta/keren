@@ -167,7 +167,7 @@ function parseBody(lines, start, func) {
         const nodeId = `${func.name}/${result}`;
         func.nodes.push({
           id: nodeId, ssaName: result, op: shortOp, fullOp: opName,
-          dialect, type, attrs, simValue, label: shortOp,
+          dialect, type, attrs, simValue, label: `${result} = ${shortOp}`,
         });
         valueMap[result] = nodeId;
 

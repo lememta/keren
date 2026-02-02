@@ -52,8 +52,10 @@ export class GraphRenderer {
         const summaryId = `__group__${gid}`;
         groupSummaryId[gid] = summaryId;
         const opCounts = {};
+        let simCount = 0;
         for (const n of f.nodes) {
           opCounts[n.op] = (opCounts[n.op] || 0) + 1;
+          if (n.simValue != null) simCount++;
         }
         visibleNodes.push({
           id: summaryId,
@@ -62,13 +64,14 @@ export class GraphRenderer {
           dialect: '',
           type: f.returnType || '',
           attrs: {},
-          simValue: null,
+          simValue: simCount > 0 ? `${simCount}/${f.nodes.length} ops have values` : null,
           label: `@${f.name}`,
           isGroupSummary: true,
           groupId: gid,
           groupName: f.name,
           childCount: f.nodes.length,
           opCounts,
+          simCount,
         });
       } else {
         for (const n of f.nodes) {
@@ -111,8 +114,8 @@ export class GraphRenderer {
 
     for (const node of visibleNodes) {
       const hasSim = node.simValue != null;
-      const w = Math.max(node.label.length * 9 + 30, hasSim ? 120 : 80);
-      const h = node.isGroupSummary ? 50 : (hasSim ? 56 : 40);
+      const w = Math.max(node.label.length * 9 + 30, hasSim ? 140 : 80);
+      const h = node.isGroupSummary ? (hasSim ? 64 : 50) : (hasSim ? 56 : 40);
       dg.setNode(node.id, { label: node.label, width: w, height: h, node });
       // Assign to parent cluster if expanded
       if (!node.isGroupSummary && node.group && !this.collapsed[node.group]) {
@@ -265,7 +268,11 @@ export class GraphRenderer {
         // Collapsed group summary node
         group.on('click', function (event) {
           self.selectNode(nodeData.id);
-          if (self.onNodeClick) self.onNodeClick(nodeData);
+          if (self.onNodeClick) {
+            // Find child nodes for this group
+            const groupFunc = funcs.find(f => f.id === nodeData.groupId);
+            self.onNodeClick(nodeData, groupFunc ? groupFunc.nodes : null);
+          }
         });
         group.on('dblclick', function (event) {
           event.stopPropagation();
@@ -379,10 +386,17 @@ export class GraphRenderer {
     for (const f of this.funcs) {
       for (const n of f.nodes) {
         const ssaName = n.ssaName || n.id.split('/').pop();
+        // Try exact match first, then with/without % prefix
         if (valueMap[ssaName] != null) {
           n.simValue = valueMap[ssaName];
-        } else if (valueMap[`%${ssaName}`] != null) {
-          n.simValue = valueMap[`%${ssaName}`];
+        } else {
+          const bare = ssaName.startsWith('%') ? ssaName.slice(1) : ssaName;
+          const prefixed = ssaName.startsWith('%') ? ssaName : `%${ssaName}`;
+          if (valueMap[bare] != null) {
+            n.simValue = valueMap[bare];
+          } else if (valueMap[prefixed] != null) {
+            n.simValue = valueMap[prefixed];
+          }
         }
       }
     }

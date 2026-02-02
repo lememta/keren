@@ -48,16 +48,29 @@ func.func @loss(%pred: tensor<4x4xf32>, %target: tensor<4x4xf32>) -> tensor<f32>
   return %sum : tensor<f32>
 }`;
 
-const SAMPLE_SIM_JSON = `{
-  "%c": [[11, 22], [33, 44]],
-  "%a": [[1, 2], [3, 4]],
-  "%b": [[10, 20], [30, 40]]
-}`;
-
-const SAMPLE_INPUT_JSON = `[
-  [[1, 2], [3, 4]],
-  [[10, 20], [30, 40]]
-]`;
+// Sample inputs per preset (JSON arrays matching function arguments)
+const PRESET_INPUTS = {
+  'add': '[]',
+  'dot_relu': `[
+  [[1, 0.5, -1], [2, 1, 0], [0, -1, 3], [-0.5, 2, 1]],
+  [[1, 0], [0, 1], [1, 1]]
+]`,
+  'multi_op': '[]',
+  'multi_func': `[
+  [[0.1, -0.2, 0.3, 0.4, -0.5, 0.6, -0.7, 0.8],
+   [0.9, -1.0, 0.1, 0.2, -0.3, 0.4, -0.5, 0.6],
+   [-0.1, 0.2, -0.3, 0.4, 0.5, -0.6, 0.7, -0.8],
+   [0.3, 0.1, -0.4, 0.2, 0.6, -0.1, 0.5, -0.3]],
+  [[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+   [-0.1, 0.1, -0.1, 0.1, -0.1, 0.1, -0.1, 0.1],
+   [0.2, -0.2, 0.2, -0.2, 0.2, -0.2, 0.2, -0.2],
+   [0.3, 0.3, -0.3, -0.3, 0.3, 0.3, -0.3, -0.3],
+   [-0.4, 0.4, -0.4, 0.4, -0.4, 0.4, -0.4, 0.4],
+   [0.5, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, -0.5],
+   [-0.1, -0.2, -0.3, 0.1, 0.2, 0.3, 0.4, -0.4],
+   [0.6, 0.1, -0.6, -0.1, 0.6, 0.1, -0.6, -0.1]]
+]`,
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   const mlirInput = document.getElementById('mlir-input');
@@ -93,7 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const detailPanel = new DetailPanel(detailContainer);
-  let renderer = new GraphRenderer(graphContainer, (node) => detailPanel.show(node));
+  let renderer = new GraphRenderer(graphContainer, (node, childNodes) => {
+    if (node.isGroupSummary) {
+      detailPanel.showGroup(node, childNodes);
+    } else {
+      detailPanel.show(node);
+    }
+  });
   let currentFuncs = null;
   let allCollapsed = true;
   let simAbort = null; // AbortController for cancelling requests
@@ -110,11 +129,12 @@ document.addEventListener('DOMContentLoaded', () => {
   presetSelect.addEventListener('change', async () => {
     const val = presetSelect.value;
     if (val === 'gpt2') {
-      // Fetch both MLIR and input values from server
+      // Fetch both MLIR and input values from server (cache-bust)
       try {
+        const ts = Date.now();
         const [mlirResp, inputsResp] = await Promise.all([
-          fetch('examples/gpt2.mlir'),
-          fetch('examples/gpt2_inputs.json'),
+          fetch(`examples/gpt2.mlir?t=${ts}`),
+          fetch(`examples/gpt2_inputs.json?t=${ts}`),
         ]);
         mlirInput.value = await mlirResp.text();
         simInput.value = await inputsResp.text();
@@ -123,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else if (presets[val]) {
       mlirInput.value = presets[val];
+      simInput.value = PRESET_INPUTS[val] || '[]';
     }
   });
 
@@ -148,7 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text.trim()) return;
     try {
       currentFuncs = parseMLIR(text);
-      renderer = new GraphRenderer(graphContainer, (node) => detailPanel.show(node));
+      renderer = new GraphRenderer(graphContainer, (node, childNodes) => {
+        if (node.isGroupSummary) {
+          detailPanel.showGroup(node, childNodes);
+        } else {
+          detailPanel.show(node);
+        }
+      });
       renderer.render(currentFuncs);
       detailPanel.clear();
       allCollapsed = true;
@@ -246,15 +273,35 @@ document.addEventListener('DOMContentLoaded', () => {
     stepIndex++;
   });
 
+  function detectEntryFunction(mlir) {
+    // Find all public (non-private) func.func names
+    const funcNames = [];
+    for (const line of mlir.split('\n')) {
+      const m = line.match(/func\.func\s+@(\w+)/);
+      if (m && !line.includes('private')) {
+        funcNames.push(m[1]);
+      }
+    }
+    if (funcNames.includes('main')) return 'main';
+    // Use the last public function (typically the top-level forward pass)
+    return funcNames.length > 0 ? funcNames[funcNames.length - 1] : 'main';
+  }
+
   async function runSimulation(mlir, inputs = []) {
     setSimRunning();
+    const entry = detectEntryFunction(mlir);
+
+    // Use trace endpoint for simple models, plain simulate for complex ones
+    // (probe instrumentation crashes on models with cross-function calls)
+    const hasCallOps = /call @/.test(mlir);
+    const endpoint = hasCallOps ? '/api/simulate' : '/api/simulate-trace';
 
     simAbort = new AbortController();
     try {
-      const resp = await fetch('/api/simulate-trace', {
+      const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mlir, inputs }),
+        body: JSON.stringify({ mlir, inputs, entry }),
         signal: simAbort.signal,
       });
 
@@ -308,10 +355,36 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        // Also include final results (mapped to return values)
-        if (data.results) {
-          const normalized = normalizeSimValues(data.results);
-          Object.assign(valueMap, normalized);
+        // Map final results to return nodes in the entry function
+        if (data.results && currentFuncs) {
+          const entryFunc = currentFuncs.find(f => f.name === entry) || currentFuncs[currentFuncs.length - 1];
+          if (entryFunc) {
+            // Find the return node
+            const returnNode = entryFunc.nodes.find(n => n.op === 'return');
+            if (returnNode) {
+              // For single-result, map result_0 to the return node
+              const firstResult = data.results['result_0'];
+              if (firstResult) {
+                const val = firstResult.value != null ? firstResult.value : firstResult;
+                const ssaName = returnNode.ssaName || returnNode.id.split('/').pop();
+                valueMap[ssaName] = val;
+              }
+            }
+            // Also try to map result_N to the operands of the return
+            // (the actual values being returned)
+            const normalized = normalizeSimValues(data.results);
+            const resultKeys = Object.keys(normalized).sort();
+            // Find nodes that feed into the return (last non-return, non-arg ops)
+            const opNodes = entryFunc.nodes.filter(n => n.op !== 'arg' && n.op !== 'return');
+            if (resultKeys.length > 0 && opNodes.length > 0) {
+              // Map last result to last op node
+              for (let ri = 0; ri < resultKeys.length && ri < opNodes.length; ri++) {
+                const node = opNodes[opNodes.length - 1 - ri];
+                const ssaName = node.ssaName || node.id.split('/').pop();
+                valueMap[ssaName] = normalized[resultKeys[resultKeys.length - 1 - ri]];
+              }
+            }
+          }
         }
 
         if (renderer) {
@@ -364,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load defaults
   mlirInput.value = SAMPLE_MLIR;
-  simInput.value = SAMPLE_INPUT_JSON;
+  simInput.value = PRESET_INPUTS['add'] || '[]';
 });
 
 function normalizeSimValues(raw) {
