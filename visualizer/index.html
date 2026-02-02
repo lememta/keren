@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Keren Visualizer — StableHLO Graph Viewer</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Keren Visualizer</h1>
+    <select id="preset-select">
+      <option value="">— preset —</option>
+      <option value="add">add (simple)</option>
+      <option value="dot_relu">dot + relu</option>
+      <option value="multi_op">multi-op chain</option>
+      <option value="multi_func">multi-function</option>
+      <option value="gpt2">GPT-2 (real model)</option>
+    </select>
+    <input type="file" id="file-input" accept=".mlir,.txt">
+    <button id="parse-btn">Parse &amp; Render</button>
+    <button id="collapse-btn">Collapse All</button>
+  </header>
+
+  <!-- Simulation transport bar -->
+  <div id="sim-bar">
+    <div class="sim-controls">
+      <button id="sim-run-btn" class="sim-btn sim-play" title="Run simulation">&#9654;</button>
+      <button id="sim-stop-btn" class="sim-btn sim-stop" title="Stop" disabled>&#9632;</button>
+      <button id="sim-step-btn" class="sim-btn" title="Step forward">&#9654;&#9646;</button>
+    </div>
+    <div id="sim-progress-wrap">
+      <div id="sim-progress-bar"></div>
+    </div>
+    <span id="sim-status">Ready</span>
+  </div>
+
+  <div class="main">
+    <div class="left-panel" id="left-panel">
+      <h2>MLIR Input</h2>
+      <textarea id="mlir-input" placeholder="Paste StableHLO MLIR here..." spellcheck="false"></textarea>
+      <div class="sim-section">
+        <h2>Input Values (JSON)</h2>
+        <textarea id="sim-input" placeholder='Input tensor values as JSON array, e.g. [[[1,2],[3,4]], [[5,6],[7,8]]]' spellcheck="false"></textarea>
+        <div class="sim-section-buttons">
+          <input type="file" id="values-file-input" accept=".json">
+          <button id="load-sim-btn">Load Values</button>
+        </div>
+      </div>
+    </div>
+    <button id="toggle-left" class="panel-toggle toggle-left" title="Toggle left panel">&lsaquo;</button>
+    <div class="center-panel">
+      <div id="graph-container"></div>
+    </div>
+    <button id="toggle-right" class="panel-toggle toggle-right" title="Toggle details panel">&rsaquo;</button>
+    <div class="right-panel" id="detail-panel">
+    </div>
+  </div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
