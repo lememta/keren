@@ -86,12 +86,12 @@ module @gpt2 {
     %19 = stablehlo.divide %17, %18 : tensor<1x4x16x16xf32>
     %cst_0 = stablehlo.constant dense<1.000000e+00> : tensor<f32>
     %20 = stablehlo.broadcast_in_dim %cst_0, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
-    %21 = call @tril(%20) : (tensor<16x16xf32>) -> tensor<16x16xf32>
+    %21 = call @causal_self_attention__tril(%20) : (tensor<16x16xf32>) -> tensor<16x16xf32>
     %cst_1 = stablehlo.constant dense<0.000000e+00> : tensor<f32>
     %22 = stablehlo.broadcast_in_dim %cst_1, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
     %23 = stablehlo.compare  EQ, %21, %22,  FLOAT : (tensor<16x16xf32>, tensor<16x16xf32>) -> tensor<16x16xi1>
     %cst_2 = stablehlo.constant dense<-1.000000e+09> : tensor<f32>
-    %24 = call @_where(%23, %cst_2, %19) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
+    %24 = call @causal_self_attention___where(%23, %cst_2, %19) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
     %cst_3 = stablehlo.constant dense<0xFF800000> : tensor<f32>
     %25 = stablehlo.reduce(%24 init: %cst_3) applies stablehlo.maximum across dimensions = [3] : (tensor<1x4x16x16xf32>, tensor<f32>) -> tensor<1x4x16xf32>
     %cst_4 = stablehlo.constant dense<0xFF800000> : tensor<f32>
@@ -116,6 +116,26 @@ module @gpt2 {
     %43 = stablehlo.broadcast_in_dim %42, dims = [0, 1, 2] : (tensor<1x1x128xf32>) -> tensor<1x16x128xf32>
     %44 = stablehlo.add %41, %43 : tensor<1x16x128xf32>
     return %44 : tensor<1x16x128xf32>
+  }
+
+  func.func private @causal_self_attention__tril(%arg0: tensor<16x16xf32>) -> (tensor<16x16xf32>) {
+    %0 = stablehlo.iota dim = 0 : tensor<16x16xi32>
+    %c = stablehlo.constant dense<0> : tensor<i32>
+    %1 = stablehlo.broadcast_in_dim %c, dims = [] : (tensor<i32>) -> tensor<16x16xi32>
+    %2 = stablehlo.add %0, %1 : tensor<16x16xi32>
+    %3 = stablehlo.iota dim = 1 : tensor<16x16xi32>
+    %4 = stablehlo.compare  GE, %2, %3,  SIGNED : (tensor<16x16xi32>, tensor<16x16xi32>) -> tensor<16x16xi1>
+    %cst = stablehlo.constant dense<0.000000e+00> : tensor<f32>
+    %5 = stablehlo.broadcast_in_dim %cst, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
+    %6 = stablehlo.select %4, %arg0, %5 : tensor<16x16xi1>, tensor<16x16xf32>
+    return %6 : tensor<16x16xf32>
+  }
+
+  func.func private @causal_self_attention___where(%arg0: tensor<16x16xi1>, %arg1: tensor<f32>, %arg2: tensor<1x4x16x16xf32>) -> (tensor<1x4x16x16xf32>) {
+    %0 = stablehlo.broadcast_in_dim %arg0, dims = [2, 3] : (tensor<16x16xi1>) -> tensor<1x4x16x16xi1>
+    %1 = stablehlo.broadcast_in_dim %arg1, dims = [] : (tensor<f32>) -> tensor<1x4x16x16xf32>
+    %2 = stablehlo.select %0, %1, %arg2 : tensor<1x4x16x16xi1>, tensor<1x4x16x16xf32>
+    return %2 : tensor<1x4x16x16xf32>
   }
 
 // ── Feed-Forward MLP ──
@@ -204,12 +224,12 @@ module @gpt2 {
     %43 = stablehlo.divide %41, %42 : tensor<1x4x16x16xf32>
     %cst_5 = stablehlo.constant dense<1.000000e+00> : tensor<f32>
     %44 = stablehlo.broadcast_in_dim %cst_5, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
-    %45 = call @tril(%44) : (tensor<16x16xf32>) -> tensor<16x16xf32>
+    %45 = call @transformer_block__tril(%44) : (tensor<16x16xf32>) -> tensor<16x16xf32>
     %cst_6 = stablehlo.constant dense<0.000000e+00> : tensor<f32>
     %46 = stablehlo.broadcast_in_dim %cst_6, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
     %47 = stablehlo.compare  EQ, %45, %46,  FLOAT : (tensor<16x16xf32>, tensor<16x16xf32>) -> tensor<16x16xi1>
     %cst_7 = stablehlo.constant dense<-1.000000e+09> : tensor<f32>
-    %48 = call @_where(%47, %cst_7, %43) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
+    %48 = call @transformer_block___where(%47, %cst_7, %43) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
     %cst_8 = stablehlo.constant dense<0xFF800000> : tensor<f32>
     %49 = stablehlo.reduce(%48 init: %cst_8) applies stablehlo.maximum across dimensions = [3] : (tensor<1x4x16x16xf32>, tensor<f32>) -> tensor<1x4x16xf32>
     %cst_9 = stablehlo.constant dense<0xFF800000> : tensor<f32>
@@ -292,6 +312,26 @@ module @gpt2 {
     %116 = stablehlo.add %113, %115 : tensor<1x16x128xf32>
     %117 = stablehlo.add %69, %116 : tensor<1x16x128xf32>
     return %117 : tensor<1x16x128xf32>
+  }
+
+  func.func private @transformer_block__tril(%arg0: tensor<16x16xf32>) -> (tensor<16x16xf32>) {
+    %0 = stablehlo.iota dim = 0 : tensor<16x16xi32>
+    %c = stablehlo.constant dense<0> : tensor<i32>
+    %1 = stablehlo.broadcast_in_dim %c, dims = [] : (tensor<i32>) -> tensor<16x16xi32>
+    %2 = stablehlo.add %0, %1 : tensor<16x16xi32>
+    %3 = stablehlo.iota dim = 1 : tensor<16x16xi32>
+    %4 = stablehlo.compare  GE, %2, %3,  SIGNED : (tensor<16x16xi32>, tensor<16x16xi32>) -> tensor<16x16xi1>
+    %cst = stablehlo.constant dense<0.000000e+00> : tensor<f32>
+    %5 = stablehlo.broadcast_in_dim %cst, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
+    %6 = stablehlo.select %4, %arg0, %5 : tensor<16x16xi1>, tensor<16x16xf32>
+    return %6 : tensor<16x16xf32>
+  }
+
+  func.func private @transformer_block___where(%arg0: tensor<16x16xi1>, %arg1: tensor<f32>, %arg2: tensor<1x4x16x16xf32>) -> (tensor<1x4x16x16xf32>) {
+    %0 = stablehlo.broadcast_in_dim %arg0, dims = [2, 3] : (tensor<16x16xi1>) -> tensor<1x4x16x16xi1>
+    %1 = stablehlo.broadcast_in_dim %arg1, dims = [] : (tensor<f32>) -> tensor<1x4x16x16xf32>
+    %2 = stablehlo.select %0, %1, %arg2 : tensor<1x4x16x16xi1>, tensor<1x4x16x16xf32>
+    return %2 : tensor<1x4x16x16xf32>
   }
 
 // ── Language Model Head ──
@@ -378,12 +418,12 @@ module @gpt2 {
     %60 = stablehlo.divide %58, %59 : tensor<1x4x16x16xf32>
     %cst_8 = stablehlo.constant dense<1.000000e+00> : tensor<f32>
     %61 = stablehlo.broadcast_in_dim %cst_8, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
-    %62 = call @tril(%61) : (tensor<16x16xf32>) -> tensor<16x16xf32>
+    %62 = call @gpt2_forward__tril(%61) : (tensor<16x16xf32>) -> tensor<16x16xf32>
     %cst_9 = stablehlo.constant dense<0.000000e+00> : tensor<f32>
     %63 = stablehlo.broadcast_in_dim %cst_9, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
     %64 = stablehlo.compare  EQ, %62, %63,  FLOAT : (tensor<16x16xf32>, tensor<16x16xf32>) -> tensor<16x16xi1>
     %cst_10 = stablehlo.constant dense<-1.000000e+09> : tensor<f32>
-    %65 = call @_where(%64, %cst_10, %60) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
+    %65 = call @gpt2_forward___where(%64, %cst_10, %60) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
     %cst_11 = stablehlo.constant dense<0xFF800000> : tensor<f32>
     %66 = stablehlo.reduce(%65 init: %cst_11) applies stablehlo.maximum across dimensions = [3] : (tensor<1x4x16x16xf32>, tensor<f32>) -> tensor<1x4x16xf32>
     %cst_12 = stablehlo.constant dense<0xFF800000> : tensor<f32>
@@ -517,12 +557,12 @@ module @gpt2 {
     %178 = stablehlo.divide %176, %177 : tensor<1x4x16x16xf32>
     %cst_29 = stablehlo.constant dense<1.000000e+00> : tensor<f32>
     %179 = stablehlo.broadcast_in_dim %cst_29, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
-    %180 = call @tril(%179) : (tensor<16x16xf32>) -> tensor<16x16xf32>
+    %180 = call @gpt2_forward__tril(%179) : (tensor<16x16xf32>) -> tensor<16x16xf32>
     %cst_30 = stablehlo.constant dense<0.000000e+00> : tensor<f32>
     %181 = stablehlo.broadcast_in_dim %cst_30, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
     %182 = stablehlo.compare  EQ, %180, %181,  FLOAT : (tensor<16x16xf32>, tensor<16x16xf32>) -> tensor<16x16xi1>
     %cst_31 = stablehlo.constant dense<-1.000000e+09> : tensor<f32>
-    %183 = call @_where(%182, %cst_31, %178) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
+    %183 = call @gpt2_forward___where(%182, %cst_31, %178) : (tensor<16x16xi1>, tensor<f32>, tensor<1x4x16x16xf32>) -> tensor<1x4x16x16xf32>
     %cst_32 = stablehlo.constant dense<0xFF800000> : tensor<f32>
     %184 = stablehlo.reduce(%183 init: %cst_32) applies stablehlo.maximum across dimensions = [3] : (tensor<1x4x16x16xf32>, tensor<f32>) -> tensor<1x4x16xf32>
     %cst_33 = stablehlo.constant dense<0xFF800000> : tensor<f32>
@@ -638,6 +678,26 @@ module @gpt2 {
     %279 = stablehlo.broadcast_in_dim %278, dims = [0, 1, 2] : (tensor<1x1x256xf32>) -> tensor<1x16x256xf32>
     %280 = stablehlo.add %277, %279 : tensor<1x16x256xf32>
     return %280 : tensor<1x16x256xf32>
+  }
+
+  func.func private @gpt2_forward__tril(%arg0: tensor<16x16xf32>) -> (tensor<16x16xf32>) {
+    %0 = stablehlo.iota dim = 0 : tensor<16x16xi32>
+    %c = stablehlo.constant dense<0> : tensor<i32>
+    %1 = stablehlo.broadcast_in_dim %c, dims = [] : (tensor<i32>) -> tensor<16x16xi32>
+    %2 = stablehlo.add %0, %1 : tensor<16x16xi32>
+    %3 = stablehlo.iota dim = 1 : tensor<16x16xi32>
+    %4 = stablehlo.compare  GE, %2, %3,  SIGNED : (tensor<16x16xi32>, tensor<16x16xi32>) -> tensor<16x16xi1>
+    %cst = stablehlo.constant dense<0.000000e+00> : tensor<f32>
+    %5 = stablehlo.broadcast_in_dim %cst, dims = [] : (tensor<f32>) -> tensor<16x16xf32>
+    %6 = stablehlo.select %4, %arg0, %5 : tensor<16x16xi1>, tensor<16x16xf32>
+    return %6 : tensor<16x16xf32>
+  }
+
+  func.func private @gpt2_forward___where(%arg0: tensor<16x16xi1>, %arg1: tensor<f32>, %arg2: tensor<1x4x16x16xf32>) -> (tensor<1x4x16x16xf32>) {
+    %0 = stablehlo.broadcast_in_dim %arg0, dims = [2, 3] : (tensor<16x16xi1>) -> tensor<1x4x16x16xi1>
+    %1 = stablehlo.broadcast_in_dim %arg1, dims = [] : (tensor<f32>) -> tensor<1x4x16x16xf32>
+    %2 = stablehlo.select %0, %1, %arg2 : tensor<1x4x16x16xi1>, tensor<1x4x16x16xf32>
+    return %2 : tensor<1x4x16x16xf32>
   }
 
 }  // module @gpt2

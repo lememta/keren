@@ -74,37 +74,60 @@ def lm_head(x, w, b):
 
 # ── StableHLO extraction helpers ──────────────────────────────────────
 
-def extract_func_body(stablehlo_text, original_name):
-    """Extract the function signature and body from lowered StableHLO text,
-    skipping the module wrapper."""
-    # Find the func.func line
+def extract_all_funcs(stablehlo_text):
+    """Extract all func.func definitions from lowered StableHLO text."""
     lines = stablehlo_text.split('\n')
-    func_lines = []
+    funcs = []
+    current = []
     inside = False
     brace_depth = 0
     for line in lines:
         if not inside and 'func.func' in line:
             inside = True
             brace_depth = 0
+            current = []
         if inside:
-            func_lines.append(line)
+            current.append(line)
             brace_depth += line.count('{') - line.count('}')
-            if brace_depth <= 0 and len(func_lines) > 1:
-                break
-    return '\n'.join(func_lines)
+            if brace_depth <= 0 and len(current) > 1:
+                funcs.append('\n'.join(current))
+                inside = False
+                current = []
+    return funcs
 
 
 def lower_component(fn, args, name):
-    """Lower a JAX function to StableHLO and extract the func body."""
+    """Lower a JAX function to StableHLO and extract all func bodies.
+
+    JAX may generate helper functions (e.g. @tril, @_where) alongside @main.
+    We extract all of them, rename @main to the given name, and prefix
+    helpers with the component name to avoid collisions across components.
+    """
     lowered = jax.jit(fn).lower(*args)
     text = lowered.as_text("stablehlo")
-    body = extract_func_body(text, name)
-    # Rename the function from @main to @<name>
-    body = body.replace('func.func public @main', f'func.func @{name}', 1)
-    # Strip mhlo attributes from args/results
-    body = re.sub(r'\s*\{mhlo\.layout_mode\s*=\s*"[^"]*"\}', '', body)
-    body = re.sub(r'\s*\{jax\.result_info\s*=\s*"[^"]*",\s*mhlo\.layout_mode\s*=\s*"[^"]*"\}', '', body)
-    return body
+    funcs = extract_all_funcs(text)
+
+    # Identify helper function names (everything that's not @main)
+    helper_names = []
+    for f in funcs:
+        m = re.search(r'func\.func\s+(?:public\s+|private\s+)?@(\w+)', f)
+        if m and m.group(1) != 'main':
+            helper_names.append(m.group(1))
+
+    # Build the combined output: rename @main, prefix helpers
+    parts = []
+    for f in funcs:
+        # Rename helpers to avoid cross-component collisions
+        for hname in helper_names:
+            f = re.sub(r'@' + re.escape(hname) + r'(?=[\s(])', f'@{name}__{hname}', f)
+        # Rename @main to @<name>
+        f = f.replace('func.func public @main', f'func.func @{name}', 1)
+        # Strip mhlo/jax attributes
+        f = re.sub(r'\s*\{mhlo\.layout_mode\s*=\s*"[^"]*"\}', '', f)
+        f = re.sub(r'\s*\{jax\.result_info\s*=\s*"[^"]*",\s*mhlo\.layout_mode\s*=\s*"[^"]*"\}', '', f)
+        parts.append(f)
+
+    return '\n\n'.join(parts)
 
 
 # ── Main ──────────────────────────────────────────────────────────────
