@@ -1,9 +1,20 @@
 add_library(keren
+  # Original interpreter/simulator code
   Interpreter.cpp
   StableHLOHandler.cpp
   LinalgHandler.cpp
   TensorValue.cpp
   Pipeline.cpp
+
+  # New compiler code
+  Compiler.cpp
+  OpLowering.cpp
+  Fusion.cpp
+
+  # Op lowerings
+  Lowerings/ElementwiseOps.cpp
+  Lowerings/ContractionOps.cpp
+  Lowerings/ReductionOps.cpp
 )
 
 target_include_directories(keren PUBLIC
@@ -25,6 +36,7 @@ target_link_libraries(keren PUBLIC
   MLIRArithDialect
   MLIRLinalgDialect
   MLIRTensorDialect
+  MLIRMathDialect
   MLIRPass
   MLIRTransformUtils
   MLIRQuantDialect
