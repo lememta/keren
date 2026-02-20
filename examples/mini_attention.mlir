@@ -1,5 +1,4 @@
 // Mini-Attention Block Example
-// Inspired by: https://patricktoulme.substack.com/p/from-jax-to-vliw-tracing-a-computation
 //
 // This example demonstrates the Keren compiler's op-by-op lowering and fusion
 // on a simplified attention-like computation:

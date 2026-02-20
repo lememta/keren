@@ -4,7 +4,7 @@ This document describes the Keren compiler extension that lowers StableHLO opera
 
 ## Motivation
 
-Inspired by [From JAX to VLIW: Tracing a Computation Through the TPU Compiler Stack](https://patricktoulme.substack.com/p/from-jax-to-vliw-tracing-a-computation), this compiler demonstrates:
+This compiler demonstrates:
 
 1. **Op-by-Op Lowering**: Each StableHLO operation is individually converted to its Linalg equivalent
 2. **Operation Fusion**: Consecutive elementwise operations are fused to reduce memory bandwidth
@@ -205,5 +205,4 @@ cmake --build . --target check-keren-compile
 
 - [StableHLO Specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md)
 - [Linalg Dialect](https://mlir.llvm.org/docs/Dialects/Linalg/)
-- [From JAX to VLIW](https://patricktoulme.substack.com/p/from-jax-to-vliw-tracing-a-computation)
 - [MLIR Pattern Rewriting](https://mlir.llvm.org/docs/PatternRewriter/)

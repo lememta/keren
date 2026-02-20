@@ -194,4 +194,3 @@ keren/
 - [StableHLO Specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md)
 - [Linalg Dialect](https://mlir.llvm.org/docs/Dialects/Linalg/)
 - [MLIR Pattern Rewriting](https://mlir.llvm.org/docs/PatternRewriter/)
-- Blog: [From JAX to VLIW](https://patricktoulme.substack.com/p/from-jax-to-vliw-tracing-a-computation)

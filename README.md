@@ -36,8 +36,6 @@ build/tools/keren-sim --trace=/tmp/trace input.mlir
 
 ### keren-compile — StableHLO to Linalg Compiler
 
-Inspired by [From JAX to VLIW: Tracing a Computation Through the TPU Compiler Stack](https://patricktoulme.substack.com/p/from-jax-to-vliw-tracing-a-computation).
-
 ```bash
 # Op-by-op lowering
 build/tools/keren-compile --lower-ops input.mlir
