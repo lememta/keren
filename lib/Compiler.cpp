@@ -109,11 +109,10 @@ mlir::LogicalResult Compiler::runOpLowering(mlir::ModuleOp module) {
 
   // Apply patterns greedily
   mlir::GreedyRewriteConfig config;
-  config.maxIterations = 10; // Limit iterations
 
-  if (mlir::failed(mlir::applyPatternsAndFoldGreedily(module,
-                                                       std::move(patterns),
-                                                       config))) {
+  if (mlir::failed(mlir::applyPatternsGreedily(module,
+                                               std::move(patterns),
+                                               config))) {
     llvm::errs() << "error: op lowering failed\n";
     return mlir::failure();
   }

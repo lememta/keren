@@ -88,12 +88,12 @@ DotGeneralOpLowering::lowerToMatmul(mlir::Operation *op,
     zero = rewriter.create<mlir::arith::ConstantOp>(
         loc, rewriter.getFloatAttr(resultType.getElementType(), 0.0));
   } else {
-    zero = rewriter.create<mlir::arith::ConstantIntOp>(
-        loc, 0, resultType.getElementType());
+    auto attr = rewriter.getIntegerAttr(resultType.getElementType(), 0);
+    zero = rewriter.create<mlir::arith::ConstantOp>(loc, attr);
   }
 
   mlir::Value emptyTensor =
-      rewriter.create<mlir::tensor::EmptyOp>(loc, resultType, mlir::ValueRange{});
+      mlir::tensor::EmptyOp::create(rewriter, loc, resultType, mlir::ValueRange{});
   mlir::Value filledTensor =
       rewriter.create<mlir::linalg::FillOp>(loc, zero, emptyTensor).getResult(0);
 
@@ -119,12 +119,12 @@ DotGeneralOpLowering::lowerToBatchMatmul(mlir::Operation *op,
     zero = rewriter.create<mlir::arith::ConstantOp>(
         loc, rewriter.getFloatAttr(resultType.getElementType(), 0.0));
   } else {
-    zero = rewriter.create<mlir::arith::ConstantIntOp>(
-        loc, 0, resultType.getElementType());
+    auto attr = rewriter.getIntegerAttr(resultType.getElementType(), 0);
+    zero = rewriter.create<mlir::arith::ConstantOp>(loc, attr);
   }
 
   mlir::Value emptyTensor =
-      rewriter.create<mlir::tensor::EmptyOp>(loc, resultType, mlir::ValueRange{});
+      mlir::tensor::EmptyOp::create(rewriter, loc, resultType, mlir::ValueRange{});
   mlir::Value filledTensor =
       rewriter.create<mlir::linalg::FillOp>(loc, zero, emptyTensor).getResult(0);
 
@@ -226,11 +226,12 @@ DotGeneralOpLowering::lowerToGeneric(mlir::Operation *op,
     zero = rewriter.create<mlir::arith::ConstantOp>(
         loc, rewriter.getFloatAttr(elemType, 0.0));
   } else {
-    zero = rewriter.create<mlir::arith::ConstantIntOp>(loc, 0, elemType);
+    auto attr = rewriter.getIntegerAttr(elemType, 0);
+    zero = rewriter.create<mlir::arith::ConstantOp>(loc, attr);
   }
 
   mlir::Value emptyTensor =
-      rewriter.create<mlir::tensor::EmptyOp>(loc, resultType, mlir::ValueRange{});
+      mlir::tensor::EmptyOp::create(rewriter, loc, resultType, mlir::ValueRange{});
   mlir::Value filledTensor =
       rewriter.create<mlir::linalg::FillOp>(loc, zero, emptyTensor).getResult(0);
 

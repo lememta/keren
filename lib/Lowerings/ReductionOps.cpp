@@ -153,8 +153,8 @@ ReduceOpLowering::matchAndRewrite(mlir::Operation *op,
         loc, rewriter.getFloatAttr(elemType, val));
   } else {
     auto val = initAttr.getSplatValue<mlir::APInt>();
-    initScalar = rewriter.create<mlir::arith::ConstantIntOp>(
-        loc, val.getSExtValue(), elemType);
+    auto attr = rewriter.getIntegerAttr(elemType, val.getSExtValue());
+    initScalar = rewriter.create<mlir::arith::ConstantOp>(loc, attr);
   }
 
   // Create empty tensor and fill with init value

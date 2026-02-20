@@ -213,7 +213,7 @@ ElementwiseFusionPass::fuseProducerIntoConsumer(mlir::Operation *producer,
         mlir::IRMapping mapper;
 
         // Map producer's block arguments to fused op's arguments
-        auto &producerBlock = producerGeneric.getBody()->front();
+        mlir::Block &producerBlock = *producerGeneric.getBody();
         unsigned argIdx = 0;
         for (auto arg : producerBlock.getArguments()) {
           if (argIdx < producerGeneric.getNumDpsInputs()) {
@@ -241,7 +241,7 @@ ElementwiseFusionPass::fuseProducerIntoConsumer(mlir::Operation *producer,
         producerBodyResult = mapper.lookupOrDefault(producerYield.getOperand(0));
 
         // Map consumer's block arguments
-        auto &consumerBlock = consumerGeneric.getBody()->front();
+        mlir::Block &consumerBlock = *consumerGeneric.getBody();
         unsigned consumerArgIdx = 0;
         unsigned fusedArgIdx = producerGeneric.getNumDpsInputs();
         for (auto arg : consumerBlock.getArguments()) {
@@ -295,7 +295,7 @@ void ElementwiseFusionPass::runOnOperation() {
       if (!FusionAnalysis::canFuse(producer, consumer))
         continue;
 
-      mlir::IRRewriter rewriter(func.getContext());
+      mlir::PatternRewriter rewriter(func.getContext());
       rewriter.setInsertionPoint(consumer);
 
       auto fusedOp = fuseProducerIntoConsumer(producer, consumer, rewriter);

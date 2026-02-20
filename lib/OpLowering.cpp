@@ -24,7 +24,7 @@ mlir::Value OpLoweringBase::createEmptyTensor(mlir::PatternRewriter &rewriter,
                                                mlir::Location loc,
                                                mlir::RankedTensorType type) const {
   llvm::SmallVector<mlir::Value> dynamicDims;
-  return rewriter.create<mlir::tensor::EmptyOp>(loc, type, dynamicDims);
+  return mlir::tensor::EmptyOp::create(rewriter, loc, type, dynamicDims);
 }
 
 llvm::SmallVector<mlir::AffineMap>

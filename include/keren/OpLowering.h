@@ -3,6 +3,7 @@
 
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Dialect/Utils/StructuredOpsUtils.h"
 
 namespace keren {
 

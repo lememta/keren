@@ -267,7 +267,8 @@ NegateOpLowering::matchAndRewrite(mlir::Operation *op,
           return b.create<mlir::arith::NegFOp>(loc, input);
         } else {
           // Integer negation: 0 - x
-          auto zero = b.create<mlir::arith::ConstantIntOp>(loc, 0, elemType);
+          auto attr = b.getIntegerAttr(elemType, 0);
+          auto zero = b.create<mlir::arith::ConstantOp>(loc, attr);
           return b.create<mlir::arith::SubIOp>(loc, zero, input);
         }
       });

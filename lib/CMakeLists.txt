@@ -25,8 +25,14 @@ target_include_directories(keren PUBLIC
 file(GLOB STABLEHLO_LIBS "${STABLEHLO_BUILD_DIR}/lib/*.a")
 
 # Use linker group to resolve circular deps between StableHLO and MLIR libs
+# Note: --start-group/--end-group only work with GNU ld, not Apple ld
+if(NOT APPLE)
+  set(START_GROUP "-Wl,--start-group")
+  set(END_GROUP "-Wl,--end-group")
+endif()
+
 target_link_libraries(keren PUBLIC
-  -Wl,--start-group
+  ${START_GROUP}
   # MLIR core
   MLIRParser
   MLIRIR
@@ -57,5 +63,5 @@ target_link_libraries(keren PUBLIC
   LLVMSupport
   # All StableHLO libs
   ${STABLEHLO_LIBS}
-  -Wl,--end-group
+  ${END_GROUP}
 )
