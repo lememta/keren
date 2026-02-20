@@ -7,14 +7,118 @@ A C++ toolkit for exploring ML compiler concepts. Includes:
 
 ## Building
 
-Requires pre-built LLVM/MLIR and StableHLO installations.
+### Prerequisites
+
+- **macOS**: Xcode Command Line Tools, Homebrew
+- **Linux**: GCC/Clang, Ninja, CMake
+
+```bash
+# macOS
+brew install ninja cmake zstd
+
+# Ubuntu/Debian
+sudo apt install build-essential ninja-build cmake libzstd-dev
+```
+
+### Quick Build (if you have compatible LLVM/MLIR)
+
+If you already have LLVM/MLIR and StableHLO installations:
 
 ```bash
 cmake -B build -G Ninja \
   -DMLIR_DIR=/path/to/mlir/lib/cmake/mlir \
-  -DStableHLO_DIR=/path/to/stablehlo/lib/cmake/stablehlo
+  -DSTABLEHLO_SRC_DIR=/path/to/stablehlo \
+  -DSTABLEHLO_BUILD_DIR=/path/to/stablehlo/build
 cmake --build build
 ```
+
+### Full Build from Source (macOS)
+
+Keren requires specific LLVM/MLIR and StableHLO versions for API compatibility. Here's how to build everything from source:
+
+#### 1. Build Compatible LLVM/MLIR
+
+```bash
+# Clone LLVM at the exact commit StableHLO expects
+git clone --depth=1 https://github.com/llvm/llvm-project.git /tmp/llvm-compatible
+cd /tmp/llvm-compatible
+git fetch origin 01e6245af481dac4604e8a25be6bec0dbe36f99d
+git checkout 01e6245af481dac4604e8a25be6bec0dbe36f99d
+
+# Configure and build (15-30 minutes)
+mkdir -p /tmp/llvm-build && cd /tmp/llvm-build
+cmake -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_ENABLE_PROJECTS=mlir \
+  -DLLVM_TARGETS_TO_BUILD=host \
+  -DLLVM_ENABLE_ASSERTIONS=ON \
+  -DMLIR_ENABLE_BINDINGS_PYTHON=OFF \
+  /tmp/llvm-compatible/llvm
+
+ninja mlir-libraries
+```
+
+#### 2. Build StableHLO
+
+```bash
+# Clone StableHLO
+git clone https://github.com/openxla/stablehlo.git /tmp/stablehlo
+cd /tmp/stablehlo && git checkout v1.13.8
+
+# Configure and build against compatible LLVM
+mkdir -p build && cd build
+cmake .. -GNinja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_ENABLE_ASSERTIONS=ON \
+  -DSTABLEHLO_ENABLE_BINDINGS_PYTHON=OFF \
+  -DMLIR_DIR=/tmp/llvm-build/lib/cmake/mlir
+
+cmake --build . --parallel 4
+```
+
+#### 3. Build Keren
+
+```bash
+# Clone and build keren
+cd /path/to/keren
+npm install  # For visualizer dependencies
+
+cmake -B build -G Ninja \
+  -DMLIR_DIR=/tmp/llvm-build/lib/cmake/mlir \
+  -DSTABLEHLO_SRC_DIR=/tmp/stablehlo \
+  -DSTABLEHLO_BUILD_DIR=/tmp/stablehlo/build
+
+cmake --build build
+```
+
+#### 4. Verify Build
+
+```bash
+# Test executables
+./build/tools/keren-sim --help
+./build/tools/keren-compile --help
+
+# Check file sizes (should be ~57MB and ~75MB respectively)
+ls -lh build/tools/keren-*
+```
+
+### Build Notes
+
+- **macOS**: GNU linker flags (`--start-group`/`--end-group`) are automatically disabled for Apple's linker
+- **API Compatibility**: Uses exact LLVM commit `01e6245af481` to ensure StableHLO API compatibility
+- **Build Time**: LLVM (~20-30 min), StableHLO (~5 min), Keren (~2 min) on modern hardware
+- **Dependencies**: Final executables are statically linked and portable within the same OS
+
+### Troubleshooting
+
+**"No matching function for call to 'create'"**
+- Ensure you're using the exact LLVM commit specified above
+
+**"unknown options: --start-group --end-group"**
+- This is automatically handled on macOS; if you see this, clean and reconfigure
+
+**Missing StableHLO headers**
+- Verify `STABLEHLO_SRC_DIR` and `STABLEHLO_BUILD_DIR` point to correct paths
 
 ## Tools
 
